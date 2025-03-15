@@ -15,8 +15,7 @@
 import sys
 import pandas as pd
 
-from dwave.system.samplers import DWaveSampler
-from dwave.system.composites import EmbeddingComposite
+from neal import SimulatedAnnealingSampler
 
 from circuit_fault_diagnosis.circuits import three_bit_multiplier
 from circuit_fault_diagnosis.gates import GATES
@@ -86,7 +85,7 @@ if __name__ == '__main__':
 
     # find embedding and put on system
     print("Running using QPU\n")
-    sampler = EmbeddingComposite(DWaveSampler())
+    sampler = SimulatedAnnealingSampler()
     response = sampler.sample_ising(bqm.linear,
                                     bqm.quadratic,
                                     num_reads=NUM_READS,
