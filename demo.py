@@ -14,9 +14,8 @@
 
 import sys
 import pandas as pd
-
-from neal import SimulatedAnnealingSampler
-
+import numpy as np
+from qdeepsdk import QDeepHybridSolver
 from circuit_fault_diagnosis.circuits import three_bit_multiplier
 from circuit_fault_diagnosis.gates import GATES
 
@@ -61,13 +60,13 @@ if __name__ == '__main__':
 
     print("Enter the test conditions")
 
-    A = sanitised_input("multiplier", "A", range(2**3))
+    A = sanitised_input("multiplier", "A", range(2 ** 3))
     fixed_variables.update(zip(('a2', 'a1', 'a0'), "{:03b}".format(A)))
 
-    B = sanitised_input("multiplicand", "B", range(2**3))
+    B = sanitised_input("multiplicand", "B", range(2 ** 3))
     fixed_variables.update(zip(('b2', 'b1', 'b0'), "{:03b}".format(B)))
 
-    P = sanitised_input("product", "P", range(2**6))
+    P = sanitised_input("product", "P", range(2 ** 6))
     fixed_variables.update(zip(('p5', 'p4', 'p3', 'p2', 'p1', 'p0'), "{:06b}".format(P)))
 
     print("\nA   =    {:03b}".format(A))
@@ -85,28 +84,44 @@ if __name__ == '__main__':
 
     # find embedding and put on system
     print("Running using QPU\n")
-    sampler = SimulatedAnnealingSampler()
-    response = sampler.sample_ising(bqm.linear,
-                                    bqm.quadratic,
-                                    num_reads=NUM_READS,
-                                    label='Example - Circuit Fault Diagnosis')
+    solver = QDeepHybridSolver()
+    solver.token = "mtagdfsplb"  # Replace with your actual token
+
+    # Convert BQM to QUBO format
+    qubo, offset = bqm.to_qubo()
+
+    # Create a NumPy matrix from the QUBO dictionary
+    n = len(bqm.variables)
+    matrix = np.zeros((n, n))
+    mapping = {var: idx for idx, var in enumerate(bqm.variables)}
+
+    for (i, j), coeff in qubo.items():
+        idx_i = mapping[i]
+        idx_j = mapping[j]
+        matrix[idx_i, idx_j] = coeff
+
+    # Solve the QUBO using QDeepHybridSolver
+    result = solver.solve(matrix)
+
+    # Access the best sample from the result (access solution through 'configuration' key)
+    best_sample_vector = result['QdeepHybridSolver']['configuration']
+
+    # Map the solution back to a dictionary using the variable mapping
+    best_sample = {list(mapping.keys())[i]: best_sample_vector[i] for i in range(n)}
 
     ####################################################################################################
     # output results
     ####################################################################################################
 
     # responses are sorted in order of increasing energy, so the first energy is the minimum
-    min_energy = next(response.data()).energy
+    min_energy = result['QdeepHybridSolver']['energy']
 
-    best_samples = [dict(datum.sample) for datum in response.data() if datum.energy == min_energy]
-    for sample in best_samples:
-        for variable in list(sample.keys()):
-            if 'aux' in variable:
-                sample.pop(variable)
-        sample.update(fixed_variables)
+    # Process best sample and remove 'aux' variables
+    best_sample_cleaned = {key: value for key, value in best_sample.items() if 'aux' not in key}
+    best_sample_cleaned.update(fixed_variables)
 
     best_results = []
-    for sample in best_samples:
+    for sample in [best_sample_cleaned]:
         result = {}
         for gate_type, gates in sorted(labels.items()):
             _, configurations = GATES[gate_type]
@@ -118,14 +133,10 @@ if __name__ == '__main__':
     # at this point, our filtered "best results" all have the same number of faults, so just grab the first one
     num_faults = next(best_results.itertuples()).count('fault')
 
-    # num_ground_samples = len(best_results)
-    # best_results = best_results.groupby(best_results.columns.tolist(), as_index=False).size().reset_index().set_index(0)
     best_results = best_results.drop_duplicates().reset_index(drop=True)
     num_ground_states = len(best_results)
 
     print("The minimum fault diagnosis found is {} faulty component(s)".format(num_faults))
-    # print("Out of {} samples, the following {} ground states were returned a total of {} times:".format(
-    #     NUM_READS, num_ground_states, num_ground_samples))
     print("{} distinct fault state(s) with this many faults observed".format(num_ground_states))
 
     # verbose output
