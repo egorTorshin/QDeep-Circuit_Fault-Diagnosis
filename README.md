@@ -1,9 +1,5 @@
-[![Open in GitHub Codespaces](
-  https://img.shields.io/badge/Open%20in%20GitHub%20Codespaces-333?logo=github)](
-  https://codespaces.new/dwave-examples/circuit-fault-diagnosis?quickstart=1)
-[![Linux/Mac/Windows build status](
-  https://circleci.com/gh/dwave-examples/circuit-fault-diagnosis.svg?style=shield)](
-  https://circleci.com/gh/dwave-examples/circuit-fault-diagnosis)
+# Important note
+This repository is a fork of D-Wave's original circuit-fault-diagnosis. The contributors to this fork do not claim ownership or authorship of the original codebase. All credit for the original work belongs to D-Wave Systems and its respective contributors.
 
 # Circuit Fault Diagnosis
 
@@ -38,16 +34,6 @@ The algorithm returns the minimum fault diagnosis (the smallest number of
 faulty components it found to cause the given inputs and product) and the
 number of distinct fault states with this many faults it observed.
 
-## Code Specifics
-
-### Advanced Options
-
-The `--verbose` option displays the valid/fault status of each component for
-each minimum fault diagnosis.
-
-```bash
-python demo.py --verbose
-```
 
 ### Interesting Use Cases
 
